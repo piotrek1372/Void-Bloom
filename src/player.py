@@ -70,6 +70,7 @@ class Player:
         surface.blit(self.image, self.rect.topleft)
 
     def reload(self, dt):
+        self.reloaded = False
         if self.reloaded == False:
             self.cooldown_timer += dt
             if self.cooldown_timer >= self.cooldown_duration:

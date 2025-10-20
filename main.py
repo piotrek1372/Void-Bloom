@@ -41,9 +41,9 @@ def main():
         player.input(keys, dt)
         player.physics()
         player.move(dt)
-        player.draw(SCREEN)
         player.reload(dt)
-        if keys[pygame.K_SPACE] and player.reloaded == True:
+        player.draw(SCREEN)
+        if keys[pygame.K_SPACE]:
                 bullet = Bullet(player.rect.right, player.rect.centery)
                 bullets.append(bullet)
         for bullet in bullets.copy():
