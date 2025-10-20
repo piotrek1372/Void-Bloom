@@ -56,12 +56,18 @@ def main():
     spatial_grid = SpatialGrid(SCREEN_WIDTH, SCREEN_HEIGHT, cell_size=100)
     performance_monitor = PerformanceMonitor(show_debug=False)  # Ustaw True aby zobaczyć debug info
 
+    # Przekaż sound_manager do gracza
+    player.set_sound_manager(sound_manager)
+
     # Stan gry
     game_paused = False
     level_up_screen = None
     game_over_screen = None
     demo_ended = False
     enemies_killed = 0
+
+    # Śledzenie wrogów w spatial grid (dla optymalizacji)
+    tracked_enemies = set()  # Zbiór id(enemy) już dodanych do spatial grid
 
     while run:
         dt = clock.tick(FPS) / 1000
@@ -119,11 +125,29 @@ def main():
             for enemy in enemy_manager.get_enemies():
                 enemy.draw(SCREEN)
 
+            # Aktualizuj paski zdrowia (obsługuje zanikanie po śmierci)
+            enemy_health_bar_manager.update(dt, enemy_manager.get_enemies())
+
             # Rysuj paski zdrowia wrogów
             enemy_health_bar_manager.draw_all(SCREEN, enemy_manager.get_enemies())
 
-            # Przebuduj spatial grid dla optymalizacji kolizji
-            spatial_grid.rebuild(enemy_manager.get_enemies())
+            # Optymalizacja: Zarządzaj wrogami w spatial grid
+            # Dodaj nowych wrogów do spatial grid
+            for enemy in enemy_manager.get_enemies():
+                enemy_id = id(enemy)
+                if enemy_id not in tracked_enemies:
+                    spatial_grid.add_object(enemy)
+                    tracked_enemies.add(enemy_id)
+                else:
+                    # Aktualizuj pozycję wroga w spatial grid
+                    # Zamiast przebudowywać całą siatkę, aktualizujemy tylko pozycje
+                    # które się zmieniły (wróg przesunął się do innej komórki)
+                    spatial_grid.update_object(enemy)
+
+            # Usuń martwych wrogów z śledzenia
+            dead_enemies = [eid for eid in tracked_enemies if eid not in [id(e) for e in enemy_manager.get_enemies()]]
+            for enemy_id in dead_enemies:
+                tracked_enemies.discard(enemy_id)
 
             # Rysuj pociski z broni gracza i sprawdzaj kolizje z wrogami
             for projectile in player.get_bullets().copy():
@@ -137,6 +161,9 @@ def main():
                         sound_manager.play_hit_sound()
                         effect_manager.add_hit_flash(id(enemy), enemy.rect, duration=0.1)
 
+                        # Zastosuj efekt odrzutu wroga (Game Feel)
+                        enemy.apply_knockback(projectile.rect.centerx, projectile.rect.centery, knockback_force=200)
+
                         if enemy.take_damage(projectile.damage):
                             # Wróg umarł - spawniaj XP klejnoty
                             sound_manager.play_enemy_death_sound()
@@ -148,19 +175,23 @@ def main():
                             )
                             enemy_manager.remove_enemy(enemy)
                             enemies_killed += 1
-                        # Usuń pocisk po trafieniu
-                        for weapon in player.active_weapons:
-                            weapon.remove_projectile(projectile)
+                        # Usuń pocisk po trafieniu - używaj weapon_source
+                        if projectile.weapon_source is not None:
+                            projectile.weapon_source.remove_projectile(projectile)
                         break
 
-                # Usuń pocisk, jeśli wyszedł poza ekran
+                # Usuń pocisk, jeśli wyszedł poza ekran - używaj weapon_source
                 if projectile.is_off_screen(SCREEN_WIDTH, SCREEN_HEIGHT):
-                    player.weapon.remove_projectile(projectile)
+                    if projectile.weapon_source is not None:
+                        projectile.weapon_source.remove_projectile(projectile)
 
             # Aktualizuj klejnoty XP i zbieraj je
-            collected_xp = xp_manager.update(dt, player)
+            collected_xp, collected_gems = xp_manager.update(dt, player)
             if collected_xp > 0:
                 sound_manager.play_xp_pickup_sound()
+                # Dodaj efekty wizualne dla zebranych klejnotów
+                for gem in collected_gems:
+                    effect_manager.add_xp_absorption(gem.rect.centerx, gem.rect.centery, duration=0.3)
                 level_ups = player.add_xp(collected_xp)
                 # Jeśli gracz awansował, pokaż ekran awansu
                 if level_ups > 0:

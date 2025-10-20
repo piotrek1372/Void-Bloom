@@ -1,4 +1,5 @@
 import random
+import math
 from src.xp_gem import XPGem
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -27,7 +28,7 @@ class XPManager:
 
     def spawn_gems_from_enemy(self, enemy_x, enemy_y, num_gems=1, xp_per_gem=10):
         """
-        Spawnia klejnoty wokół martwego wroga.
+        Spawnia klejnoty wokół martwego wroga w naturalny, okrągły wzór.
 
         Args:
             enemy_x: Pozycja X wroga
@@ -37,10 +38,10 @@ class XPManager:
         """
         for _ in range(num_gems):
             # Losuj pozycję spawnu wokół wroga
-            angle = random.uniform(0, 2 * 3.14159)
+            angle = random.uniform(0, 2 * math.pi)
             distance = random.uniform(10, 30)
-            spawn_x = enemy_x + distance * (angle ** 0.5)
-            spawn_y = enemy_y + distance * ((2 * 3.14159 - angle) ** 0.5)
+            spawn_x = enemy_x + distance * math.cos(angle)
+            spawn_y = enemy_y + distance * math.sin(angle)
 
             self.spawn_gem(spawn_x, spawn_y, xp_value=xp_per_gem)
 
@@ -51,22 +52,28 @@ class XPManager:
         Args:
             dt: Delta czasu od ostatniej klatki
             player: Obiekt gracza
+
+        Returns:
+            Tuple (collected_xp, collected_gems) gdzie collected_gems to lista zebranych klejnotów
         """
         collected_xp = 0
+        collected_gems = []
+        magnet_range = player.get_magnet_range()
 
         for gem in self.gems[:]:
-            # Aktualizuj klejnot (przyciąganie, ruch)
-            gem.update(dt, player.rect.centerx, player.rect.centery)
+            # Aktualizuj klejnot (przyciąganie, ruch) z dynamicznym zasięgiem magnesu
+            gem.update(dt, player.rect.centerx, player.rect.centery, magnet_range=magnet_range)
 
             # Sprawdzaj, czy klejnot został zebrany
             if gem.is_collected(player.rect):
                 collected_xp += gem.xp_value
+                collected_gems.append(gem)
                 self.gems.remove(gem)
             # Usuń klejnot, jeśli wyszedł poza ekran
             elif gem.is_off_screen(SCREEN_WIDTH, SCREEN_HEIGHT):
                 self.gems.remove(gem)
 
-        return collected_xp
+        return collected_xp, collected_gems
 
     def get_gems(self):
         """

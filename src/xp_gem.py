@@ -42,7 +42,7 @@ class XPGem:
         self.rect.centerx += self.velocity_x * dt
         self.rect.centery += self.velocity_y * dt
 
-    def attract_to_player(self, player_x, player_y, dt, magnet_distance=150, magnet_strength=500):
+    def attract_to_player(self, player_x, player_y, dt, magnet_range=150, magnet_strength=500):
         """
         Przyciąga klejnot w kierunku gracza, jeśli jest w zasięgu magnesu.
 
@@ -50,7 +50,7 @@ class XPGem:
             player_x: Pozycja X gracza
             player_y: Pozycja Y gracza
             dt: Delta czasu od ostatniej klatki
-            magnet_distance: Dystans, w którym magnes zaczyna działać (piksele)
+            magnet_range: Zasięg magnesu (piksele) - pobierany z gracza
             magnet_strength: Siła przyciągania (przyspieszenie)
         """
         # Oblicz dystans do gracza
@@ -59,7 +59,7 @@ class XPGem:
         distance = math.sqrt(dx**2 + dy**2)
 
         # Jeśli klejnot jest w zasięgu magnesu, przyciągnij go
-        if distance < magnet_distance and distance > 0:
+        if distance < magnet_range and distance > 0:
             # Znormalizuj kierunek
             dx_norm = dx / distance
             dy_norm = dy / distance
@@ -74,7 +74,7 @@ class XPGem:
                 self.velocity_x = (self.velocity_x / speed) * self.max_speed
                 self.velocity_y = (self.velocity_y / speed) * self.max_speed
 
-    def update(self, dt, player_x, player_y):
+    def update(self, dt, player_x, player_y, magnet_range=150):
         """
         Aktualizuje stan klejnotu (przyciąganie, ruch).
 
@@ -82,8 +82,9 @@ class XPGem:
             dt: Delta czasu od ostatniej klatki
             player_x: Pozycja X gracza
             player_y: Pozycja Y gracza
+            magnet_range: Zasięg magnesu (piksele) - pobierany z gracza
         """
-        self.attract_to_player(player_x, player_y, dt)
+        self.attract_to_player(player_x, player_y, dt, magnet_range=magnet_range)
         self.move(dt)
 
     def draw(self, surface):

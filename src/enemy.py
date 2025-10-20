@@ -83,6 +83,30 @@ class Enemy(Entity):
         self.health -= damage
         return self.health <= 0
 
+    def apply_knockback(self, projectile_x, projectile_y, knockback_force=200):
+        """
+        Stosuje efekt odrzutu wroga w kierunku przeciwnym do pocisku.
+        Zwiększa satysfakcję z trafienia.
+
+        Args:
+            projectile_x: Pozycja X pocisku
+            projectile_y: Pozycja Y pocisku
+            knockback_force: Siła odrzutu (domyślnie 200)
+        """
+        # Oblicz kierunek od pocisku do wroga (kierunek odrzutu)
+        dx = self.rect.centerx - projectile_x
+        dy = self.rect.centery - projectile_y
+        distance = math.sqrt(dx**2 + dy**2)
+
+        # Jeśli dystans > 0, znormalizuj kierunek i zastosuj odrzut
+        if distance > 0:
+            dx_norm = dx / distance
+            dy_norm = dy / distance
+
+            # Zastosuj siłę odrzutu do prędkości
+            self.velocity_x += dx_norm * knockback_force
+            self.velocity_y += dy_norm * knockback_force
+
     def is_alive(self):
         """Sprawdza, czy wróg żyje."""
         return self.health > 0

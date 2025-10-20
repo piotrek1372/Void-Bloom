@@ -8,7 +8,7 @@ class LaserProjectile(Projectile):
     Pocisk lasera - szybki i silny, porusza się w kierunku ruchu gracza.
     """
 
-    def __init__(self, x, y, direction_x=1, direction_y=0, speed=500, damage=15):
+    def __init__(self, x, y, direction_x=1, direction_y=0, speed=500, damage=15, weapon_source=None):
         """
         Inicjalizuje LaserProjectile.
 
@@ -19,6 +19,7 @@ class LaserProjectile(Projectile):
             direction_y: Kierunek na osi Y
             speed: Prędkość pocisku (domyślnie 500)
             damage: Obrażenia (domyślnie 15)
+            weapon_source: Referencja do broni, która wystrzelił ten pocisk
         """
         image_path = os.path.join('assets', 'gfx', 'bullet.png')
         super().__init__(
@@ -29,7 +30,8 @@ class LaserProjectile(Projectile):
             damage=damage,
             lifetime=None,
             direction_x=direction_x,
-            direction_y=direction_y
+            direction_y=direction_y,
+            weapon_source=weapon_source
         )
 
 
@@ -38,7 +40,7 @@ class ShieldProjectile(Projectile):
     Pocisk tarczy - krąży wokół gracza w orbicie.
     """
 
-    def __init__(self, x, y, player_x, player_y, angle=0, speed=200, damage=8, orbit_radius=80):
+    def __init__(self, x, y, player_x, player_y, angle=0, speed=200, damage=8, orbit_radius=80, weapon_source=None):
         """
         Inicjalizuje ShieldProjectile.
 
@@ -51,6 +53,7 @@ class ShieldProjectile(Projectile):
             speed: Prędkość orbity (domyślnie 200)
             damage: Obrażenia (domyślnie 8)
             orbit_radius: Promień orbity (domyślnie 80)
+            weapon_source: Referencja do broni, która wystrzelił ten pocisk
         """
         image_path = os.path.join('assets', 'gfx', 'bullet.png')
         super().__init__(
@@ -61,7 +64,8 @@ class ShieldProjectile(Projectile):
             damage=damage,
             lifetime=None,
             direction_x=0,
-            direction_y=0
+            direction_y=0,
+            weapon_source=weapon_source
         )
         self.player_x = player_x
         self.player_y = player_y
@@ -131,6 +135,7 @@ class LaserWeapon:
             fire_rate: Liczba strzałów na sekundę (domyślnie 1.5)
             damage: Obrażenia (domyślnie 15)
         """
+        self.name = "⚡ Laser"
         self.fire_rate = fire_rate
         self.cooldown_duration = 1.0 / fire_rate
         self.cooldown_timer = 0.0
@@ -140,6 +145,16 @@ class LaserWeapon:
         self.damage = damage
         self.last_direction_x = 1
         self.last_direction_y = 0
+        self.sound_manager = None
+
+    def set_sound_manager(self, sound_manager):
+        """
+        Ustawia sound_manager dla broni.
+
+        Args:
+            sound_manager: Obiekt SoundManager
+        """
+        self.sound_manager = sound_manager
 
     def set_direction(self, direction_x, direction_y):
         """
@@ -155,7 +170,7 @@ class LaserWeapon:
             self.last_direction_x = direction_x / length
             self.last_direction_y = direction_y / length
 
-    def update(self, dt, player_x, player_y):
+    def update(self, dt, player_x, player_y, velocity_x=0, velocity_y=0):
         """
         Aktualizuje broń i zarządza cooldownem.
 
@@ -163,9 +178,16 @@ class LaserWeapon:
             dt: Delta czasu od ostatniej klatki
             player_x: Aktualna pozycja X gracza
             player_y: Aktualna pozycja Y gracza
+            velocity_x: Prędkość gracza na osi X
+            velocity_y: Prędkość gracza na osi Y
         """
         self.player_x = player_x
         self.player_y = player_y
+
+        # Ustaw kierunek strzału na podstawie prędkości gracza
+        # Jeśli gracz się nie porusza, użyj ostatniego kierunku
+        if velocity_x != 0 or velocity_y != 0:
+            self.set_direction(velocity_x, velocity_y)
 
         if self.cooldown_timer > 0:
             self.cooldown_timer -= dt
@@ -179,13 +201,18 @@ class LaserWeapon:
 
     def shoot(self):
         """Tworzy nowy pocisk lasera."""
+        # Odtwórz dźwięk strzału
+        if self.sound_manager is not None:
+            self.sound_manager.play_shoot_sound()
+
         projectile = LaserProjectile(
             self.player_x,
             self.player_y,
             direction_x=self.last_direction_x,
             direction_y=self.last_direction_y,
             speed=500,
-            damage=self.damage
+            damage=self.damage,
+            weapon_source=self
         )
         self.projectiles.append(projectile)
         self.cooldown_timer = self.cooldown_duration
@@ -221,6 +248,7 @@ class ShieldWeapon:
             damage: Obrażenia (domyślnie 8)
             num_projectiles: Liczba pocisków w orbicie (domyślnie 3)
         """
+        self.name = "🛡️ Tarcza"
         self.fire_rate = fire_rate
         self.cooldown_duration = 1.0 / fire_rate
         self.cooldown_timer = 0.0
@@ -230,9 +258,19 @@ class ShieldWeapon:
         self.damage = damage
         self.num_projectiles = num_projectiles
         self.orbit_radius = 80
+        self.sound_manager = None
 
         # Stwórz początkowe pociski
         self._spawn_initial_projectiles()
+
+    def set_sound_manager(self, sound_manager):
+        """
+        Ustawia sound_manager dla broni.
+
+        Args:
+            sound_manager: Obiekt SoundManager
+        """
+        self.sound_manager = sound_manager
 
     def _spawn_initial_projectiles(self):
         """Tworzy początkowe pociski w orbicie."""
@@ -246,11 +284,12 @@ class ShieldWeapon:
                 angle=angle,
                 speed=200,
                 damage=self.damage,
-                orbit_radius=self.orbit_radius
+                orbit_radius=self.orbit_radius,
+                weapon_source=self
             )
             self.projectiles.append(projectile)
 
-    def update(self, dt, player_x, player_y):
+    def update(self, dt, player_x, player_y, velocity_x=0, velocity_y=0):
         """
         Aktualizuje broń i zarządza cooldownem.
 
@@ -258,6 +297,8 @@ class ShieldWeapon:
             dt: Delta czasu od ostatniej klatki
             player_x: Aktualna pozycja X gracza
             player_y: Aktualna pozycja Y gracza
+            velocity_x: Prędkość gracza na osi X (opcjonalnie)
+            velocity_y: Prędkość gracza na osi Y (opcjonalnie)
         """
         self.player_x = player_x
         self.player_y = player_y
@@ -274,6 +315,10 @@ class ShieldWeapon:
 
     def shoot(self):
         """Tworzy nowy pocisk w orbicie."""
+        # Odtwórz dźwięk strzału
+        if self.sound_manager is not None:
+            self.sound_manager.play_shoot_sound()
+
         angle = (2 * math.pi * len(self.projectiles)) / max(1, self.num_projectiles)
         projectile = ShieldProjectile(
             self.player_x,
@@ -283,7 +328,8 @@ class ShieldWeapon:
             angle=angle,
             speed=200,
             damage=self.damage,
-            orbit_radius=self.orbit_radius
+            orbit_radius=self.orbit_radius,
+            weapon_source=self
         )
         self.projectiles.append(projectile)
         self.cooldown_timer = self.cooldown_duration

@@ -52,33 +52,56 @@ class Player(Entity):
         self.health_regen = 0.0  # HP na sekundę
         self.xp_multiplier = 1.0  # Mnożnik XP
         self.passive_upgrades = []  # Historia zastosowanych ulepszeń pasywnych
+
+        # Sound manager (będzie ustawiony później w main.py)
+        self.sound_manager = None
+    def set_sound_manager(self, sound_manager):
+        """
+        Ustawia sound_manager dla gracza i jego broni.
+
+        Args:
+            sound_manager: Obiekt SoundManager
+        """
+        self.sound_manager = sound_manager
+        # Przekaż sound_manager do wszystkich broni
+        for weapon in self.active_weapons:
+            weapon.set_sound_manager(sound_manager)
+
     def input(self, keys, dt):
+        """
+        Obsługuje wejście gracza z płynnym hamowaniem (damping).
+        Zamiast natychmiastowego zerowania prędkości, stosujemy stopniowe hamowanie.
+
+        Args:
+            keys: Słownik wciśniętych klawiszy
+            dt: Delta czasu od ostatniej klatki
+        """
+        # Współczynnik hamowania (friction) - im wyższy, tym szybsze hamowanie
+        friction = 0.85  # 85% prędkości pozostaje po każdej klatce
+
+        # Ruch poziomy
         if keys[pygame.K_d]:
             self.velocity_x += self.acc * dt
         elif keys[pygame.K_a]:
             self.velocity_x -= self.acc * dt
         else:
-            if self.velocity_x > 0:
-                self.velocity_x -= self.acc * dt
-                if self.velocity_x < 1:
-                    self.velocity_x = 0
-            elif self.velocity_x < 0:
-                self.velocity_x += self.acc * dt
-                if self.velocity_x > -1:
-                    self.velocity_x = 0
+            # Stopniowe hamowanie zamiast natychmiastowego zerowania
+            self.velocity_x *= friction
+            # Jeśli prędkość jest bardzo mała, ustaw na 0
+            if abs(self.velocity_x) < 0.1:
+                self.velocity_x = 0
+
+        # Ruch pionowy
         if keys[pygame.K_w]:
             self.velocity_y -= self.acc * dt
         elif keys[pygame.K_s]:
             self.velocity_y += self.acc * dt
         else:
-            if self.velocity_y > 0:
-                self.velocity_y -= self.acc * dt
-                if self.velocity_y < 1:
-                    self.velocity_y = 0
-            elif self.velocity_y < 0:
-                self.velocity_y += self.acc * dt
-                if self.velocity_y > -1:
-                    self.velocity_y = 0
+            # Stopniowe hamowanie zamiast natychmiastowego zerowania
+            self.velocity_y *= friction
+            # Jeśli prędkość jest bardzo mała, ustaw na 0
+            if abs(self.velocity_y) < 0.1:
+                self.velocity_y = 0
 
     def physics(self):
         """Implementuje fizykę specyficzną dla gracza (ograniczenia granic ekranu)."""
@@ -116,7 +139,7 @@ class Player(Entity):
     def update_weapon(self, dt):
         """Aktualizuje wszystkie aktywne bronie gracza."""
         for weapon in self.active_weapons:
-            weapon.update(dt, self.rect.centerx, self.rect.centery)
+            weapon.update(dt, self.rect.centerx, self.rect.centery, self.velocity_x, self.velocity_y)
 
     def get_bullets(self):
         """Zwraca listę pocisków ze wszystkich aktywnych broni."""
@@ -206,6 +229,7 @@ class Player(Entity):
     def add_weapon(self, weapon_type):
         """
         Dodaje nową broń do aktywnych broni.
+        Nowe bronie są dodawane obok domyślnej, nie zastępują jej.
 
         Args:
             weapon_type: Typ broni ("laser" lub "shield")
@@ -218,6 +242,8 @@ class Player(Entity):
                     fire_rate=1.5,
                     damage=self.get_damage()
                 )
+                if self.sound_manager is not None:
+                    laser.set_sound_manager(self.sound_manager)
                 self.available_weapons["laser"] = laser
                 self.active_weapons.append(laser)
         elif weapon_type == "shield":
@@ -229,6 +255,8 @@ class Player(Entity):
                     damage=8,
                     num_projectiles=3
                 )
+                if self.sound_manager is not None:
+                    shield.set_sound_manager(self.sound_manager)
                 self.available_weapons["shield"] = shield
                 self.active_weapons.append(shield)
 

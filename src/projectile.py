@@ -9,7 +9,7 @@ class Projectile(ABC):
     Zawiera wspólne właściwości i metody dla zarządzania pociskami.
     """
 
-    def __init__(self, x, y, image_path, speed=350, damage=10, lifetime=None, direction_x=1, direction_y=0):
+    def __init__(self, x, y, image_path, speed=350, damage=10, lifetime=None, direction_x=1, direction_y=0, weapon_source=None):
         """
         Inicjalizuje Projectile.
 
@@ -22,6 +22,7 @@ class Projectile(ABC):
             lifetime: Czas życia pocisku w sekundach (None = nieskończony)
             direction_x: Kierunek na osi X (-1, 0, 1)
             direction_y: Kierunek na osi Y (-1, 0, 1)
+            weapon_source: Referencja do broni, która wystrzelił ten pocisk
         """
         self.image = pygame.image.load(image_path)
         self.rect = self.image.get_rect()
@@ -36,6 +37,9 @@ class Projectile(ABC):
         # Kierunek ruchu (znormalizowany wektor)
         self.direction_x = direction_x
         self.direction_y = direction_y
+
+        # Referencja do broni, która wystrzelił ten pocisk
+        self.weapon_source = weapon_source
 
     def move(self, dt):
         """
@@ -102,7 +106,7 @@ class Bullet(Projectile):
     Dziedziczy z Projectile i ustawia domyślne parametry dla zwykłej kuli.
     """
 
-    def __init__(self, x, y, speed=350, damage=10):
+    def __init__(self, x, y, speed=350, damage=10, weapon_source=None):
         """
         Inicjalizuje Bullet.
 
@@ -111,6 +115,7 @@ class Bullet(Projectile):
             y: Początkowa pozycja Y
             speed: Prędkość pocisku (domyślnie 350)
             damage: Obrażenia (domyślnie 10)
+            weapon_source: Referencja do broni, która wystrzelił ten pocisk
         """
         image_path = os.path.join('assets', 'gfx', 'bullet.png')
         super().__init__(
@@ -121,6 +126,7 @@ class Bullet(Projectile):
             damage=damage,
             lifetime=None,  # Kula żyje nieskończenie długo
             direction_x=1,  # Porusza się w prawo
-            direction_y=0
+            direction_y=0,
+            weapon_source=weapon_source
         )
 

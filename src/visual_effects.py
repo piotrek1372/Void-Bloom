@@ -1,4 +1,5 @@
 import pygame
+import math
 
 
 class VisualEffect:
@@ -147,6 +148,63 @@ class ScreenShakeEffect(VisualEffect):
         return (self.offset_x, self.offset_y)
 
 
+class XPAbsorptionEffect(VisualEffect):
+    """
+    Efekt wizualny wchłonięcia klejnotu XP.
+    Pokazuje błysk i animację wchłonięcia w miejscu klejnotu.
+    """
+
+    def __init__(self, x, y, duration=0.3):
+        """
+        Inicjalizuje efekt wchłonięcia XP.
+
+        Args:
+            x: Pozycja X klejnotu
+            y: Pozycja Y klejnotu
+            duration: Czas trwania efektu (domyślnie 0.3 sekundy)
+        """
+        super().__init__(duration)
+        self.x = x
+        self.y = y
+        self.start_x = x
+        self.start_y = y
+        self.radius = 5
+
+    def draw(self, screen):
+        """
+        Rysuje efekt wchłonięcia.
+
+        Args:
+            screen: Powierzchnia pygame do rysowania
+        """
+        if not self.is_active:
+            return
+
+        # Oblicz postęp animacji (0.0 do 1.0)
+        progress = self.elapsed_time / self.duration
+
+        # Rosnący promień błysku
+        current_radius = int(self.radius + progress * 20)
+
+        # Malejąca przezroczystość
+        alpha = int(255 * (1.0 - progress))
+
+        # Utwórz powierzchnię dla efektu
+        effect_surface = pygame.Surface((current_radius * 2, current_radius * 2))
+        effect_surface.set_colorkey((0, 0, 0))
+        effect_surface.fill((0, 0, 0))
+
+        # Rysuj błysk (żółty/biały)
+        color = (255, 255, 100)  # Żółty kolor dla XP
+        pygame.draw.circle(effect_surface, color, (current_radius, current_radius), current_radius)
+
+        # Ustaw przezroczystość
+        effect_surface.set_alpha(alpha)
+
+        # Rysuj na ekranie
+        screen.blit(effect_surface, (int(self.x - current_radius), int(self.y - current_radius)))
+
+
 class EffectManager:
     """
     Zarządza wszystkimi efektami wizualnymi w grze.
@@ -169,6 +227,18 @@ class EffectManager:
         """
         effect = HitFlashEffect(target_rect, duration)
         self.hit_flashes[obj_id] = effect
+        self.effects.append(effect)
+
+    def add_xp_absorption(self, x, y, duration=0.3):
+        """
+        Dodaje efekt wchłonięcia XP.
+
+        Args:
+            x: Pozycja X klejnotu
+            y: Pozycja Y klejnotu
+            duration: Czas trwania efektu
+        """
+        effect = XPAbsorptionEffect(x, y, duration)
         self.effects.append(effect)
 
     def add_screen_shake(self, duration=0.2, intensity=5):

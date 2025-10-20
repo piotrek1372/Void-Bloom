@@ -112,23 +112,17 @@ class PlayerHUD:
         screen.blit(weapons_text, (x, y))
 
         y += 30
-        weapon_names = []
 
-        # Sprawdź jakie bronie są aktywne
-        if player.available_weapons["laser"] is not None:
-            weapon_names.append("⚡ Laser")
-        if player.available_weapons["shield"] is not None:
-            weapon_names.append("🛡️ Tarcza")
-        if len(player.active_weapons) > 1 or (len(player.active_weapons) == 1 and player.available_weapons["laser"] is None and player.available_weapons["shield"] is None):
-            weapon_names.append("🔫 Domyślna")
-
-        if not weapon_names:
-            weapon_names = ["🔫 Domyślna"]
-
-        for weapon_name in weapon_names:
-            weapon_text = self.font_small.render(weapon_name, True, (200, 200, 200))
+        # Iteruj po aktywnych broniach i wyświetlaj ich nazwy
+        if player.active_weapons:
+            for weapon in player.active_weapons:
+                weapon_text = self.font_small.render(weapon.name, True, (200, 200, 200))
+                screen.blit(weapon_text, (x + 20, y))
+                y += 25
+        else:
+            # Fallback - jeśli nie ma aktywnych broni (nie powinno się zdarzyć)
+            weapon_text = self.font_small.render("🔫 Domyślna", True, (200, 200, 200))
             screen.blit(weapon_text, (x + 20, y))
-            y += 25
 
     def _draw_bar(self, screen, x, y, current, maximum, color_bar, color_bg):
         """

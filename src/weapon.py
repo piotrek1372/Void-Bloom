@@ -7,7 +7,7 @@ class Weapon:
     Zarządza tworzeniem i aktualizacją pocisków.
     """
 
-    def __init__(self, player_x, player_y, fire_rate=1.0, projectile_class=Bullet, projectile_config=None, damage=10):
+    def __init__(self, player_x, player_y, fire_rate=1.0, projectile_class=Bullet, projectile_config=None, damage=10, name="Domyślna"):
         """
         Inicjalizuje broń.
 
@@ -18,7 +18,9 @@ class Weapon:
             projectile_class: Klasa pocisku do tworzenia (domyślnie Bullet)
             projectile_config: Słownik z konfiguracją pocisku (speed, damage, lifetime, itp.)
             damage: Obrażenia pocisku (domyślnie 10)
+            name: Nazwa broni (domyślnie "Domyślna")
         """
+        self.name = name
         self.fire_rate = fire_rate  # Strzały na sekundę
         self.cooldown_duration = 1.0 / fire_rate  # Czas między strzałami
         self.cooldown_timer = 0.0
@@ -32,7 +34,10 @@ class Weapon:
         self.projectile_config = projectile_config or {}
         self.projectile_config['damage'] = damage
 
-    def update(self, dt, player_x, player_y):
+        # Sound manager (będzie ustawiony później)
+        self.sound_manager = None
+
+    def update(self, dt, player_x, player_y, velocity_x=0, velocity_y=0):
         """
         Aktualizuje broń i zarządza cooldownem.
 
@@ -40,6 +45,8 @@ class Weapon:
             dt: Delta czasu od ostatniej klatki
             player_x: Aktualna pozycja X gracza
             player_y: Aktualna pozycja Y gracza
+            velocity_x: Prędkość gracza na osi X (opcjonalnie)
+            velocity_y: Prędkość gracza na osi Y (opcjonalnie)
         """
         self.player_x = player_x
         self.player_y = player_y
@@ -57,9 +64,24 @@ class Weapon:
             if should_remove:
                 self.projectiles.remove(projectile)
 
+    def set_sound_manager(self, sound_manager):
+        """
+        Ustawia sound_manager dla broni.
+
+        Args:
+            sound_manager: Obiekt SoundManager
+        """
+        self.sound_manager = sound_manager
+
     def shoot(self):
         """Tworzy nowy pocisk na pozycji gracza z konfiguracją."""
-        projectile = self.projectile_class(self.player_x, self.player_y, **self.projectile_config)
+        # Odtwórz dźwięk strzału
+        if self.sound_manager is not None:
+            self.sound_manager.play_shoot_sound()
+
+        config = self.projectile_config.copy()
+        config['weapon_source'] = self
+        projectile = self.projectile_class(self.player_x, self.player_y, **config)
         self.projectiles.append(projectile)
         self.cooldown_timer = self.cooldown_duration
 
