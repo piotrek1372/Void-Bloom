@@ -109,7 +109,7 @@ def main():
                     player_level=player.get_level(),
                     total_xp=player.level_manager.total_xp,
                     enemies_killed=enemies_killed,
-                    time_survived=demo_timer.total_duration
+                    time_survived=demo_timer.elapsed_time
                 )
                 game_paused = True
 
@@ -122,25 +122,16 @@ def main():
             # Aktualizuj parallax na podstawie ruchu gracza
             parallax_manager.update(player.velocity_x, player.velocity_y, dt)
 
-            player.draw(SCREEN)
+            # Rysuj gracza - z miganiem jeśli jest nietykalny
+            if player.is_invincible_now():
+                # Miganie: pokaż gracza co 0.1 sekundy
+                if (player.invincibility_timer * 10) % 2 < 1:
+                    player.draw(SCREEN)
+            else:
+                player.draw(SCREEN)
 
             # Aktualizuj wrogów
             enemy_manager.update(dt, player)
-
-            # Sprawdzaj kolizje gracza z wrogami
-            for enemy in enemy_manager.get_enemies():
-                if player.rect.colliderect(enemy.rect):
-                    # Gracz otrzymuje obrażenia od wroga
-                    if player.take_damage(1):  # 1 obrażenie na klatkę
-                        # Gracz umarł
-                        sound_manager.play_enemy_death_sound()
-                        game_over_screen = GameOverScreen(
-                            player_level=player.get_level(),
-                            total_xp=player.level_manager.total_xp,
-                            enemies_killed=enemies_killed,
-                            time_survived=demo_timer.total_duration
-                        )
-                        game_paused = True
 
             # Rysuj wrogów
             for enemy in enemy_manager.get_enemies():
@@ -158,12 +149,31 @@ def main():
             for enemy in enemy_manager.get_enemies():
                 spatial_grid.add_object(enemy)
 
+            # Sprawdzaj kolizje gracza z wrogami - używaj spatial grid dla wydajności
+            # Zamiast iterować po wszystkich wrogach, sprawdzaj tylko pobliskich
+            nearby_enemies = spatial_grid.get_nearby_objects(player, radius=1)
+            for enemy in nearby_enemies:
+                if player.rect.colliderect(enemy.rect):
+                    # Gracz otrzymuje obrażenia od wroga
+                    if player.take_damage(1):  # 1 obrażenie na klatkę
+                        # Gracz umarł
+                        sound_manager.play_enemy_death_sound()
+                        game_over_screen = GameOverScreen(
+                            player_level=player.get_level(),
+                            total_xp=player.level_manager.total_xp,
+                            enemies_killed=enemies_killed,
+                            time_survived=demo_timer.elapsed_time
+                        )
+                        game_paused = True
+
             # Rysuj pociski z broni gracza i sprawdzaj kolizje z wrogami
             for projectile in player.get_bullets().copy():
                 projectile.draw(SCREEN)
 
                 # Sprawdzaj kolizje z wrogami (używając spatial grid)
                 nearby_enemies = spatial_grid.get_nearby_objects(projectile, radius=1)
+                projectile_removed = False  # Flaga do śledzenia, czy pocisk został usunięty
+
                 for enemy in nearby_enemies:
                     if projectile.rect.colliderect(enemy.rect):
                         # Zadaj obrażenia wrogowi
@@ -202,10 +212,13 @@ def main():
 
                         if should_remove and projectile.weapon_source is not None:
                             projectile.weapon_source.remove_projectile(projectile)
+                            projectile_removed = True
+
+                        # Przerwij pętlę po kolizji - pocisk już nie będzie kolidować z innymi wrogami w tej klatce
                         break
 
-                # Usuń pocisk, jeśli wyszedł poza ekran - używaj weapon_source
-                if projectile.is_off_screen(SCREEN_WIDTH, SCREEN_HEIGHT):
+                # Usuń pocisk, jeśli wyszedł poza ekran - ale tylko jeśli nie został już usunięty
+                if not projectile_removed and projectile.is_off_screen(SCREEN_WIDTH, SCREEN_HEIGHT):
                     if projectile.weapon_source is not None:
                         projectile.weapon_source.remove_projectile(projectile)
 
@@ -226,9 +239,19 @@ def main():
                     level_up_screen = LevelUpScreen(upgrades, current_level)
                     game_paused = True
 
-            # Rysuj klejnoty XP
+            # Rysuj klejnoty XP z subtelnym efektem parallax
+            # Klejnoty dryfują z innym depth niż tło (0.1 zamiast 0.3)
+            gem_parallax_offset = parallax_manager.get_parallax_offset(depth=0.1)
             for gem in xp_manager.get_gems():
+                # Tymczasowo przesuń klejnot o offset parallax
+                original_x = gem.rect.centerx
+                original_y = gem.rect.centery
+                gem.rect.centerx -= gem_parallax_offset[0]
+                gem.rect.centery -= gem_parallax_offset[1]
                 gem.draw(SCREEN)
+                # Przywróć oryginalną pozycję
+                gem.rect.centerx = original_x
+                gem.rect.centery = original_y
         else:
             # Gra jest wznowiona - rysuj ostatnią klatkę
             player.draw(SCREEN)

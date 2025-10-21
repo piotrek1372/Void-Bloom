@@ -53,6 +53,11 @@ class Player(Entity):
         self.xp_multiplier = 1.0  # Mnożnik XP
         self.passive_upgrades = []  # Historia zastosowanych ulepszeń pasywnych
 
+        # Cooldown nietykalności po otrzymaniu obrażeń
+        self.invincibility_timer = 0.0  # Timer nietykalności
+        self.invincibility_duration = 0.5  # Czas trwania nietykalności (sekundy)
+        self.is_invincible = False  # Czy gracz jest aktualnie nietykalny
+
         # Sound manager (będzie ustawiony później w main.py)
         self.sound_manager = None
     def set_sound_manager(self, sound_manager):
@@ -105,12 +110,12 @@ class Player(Entity):
 
     def physics(self):
         """Implementuje fizykę specyficzną dla gracza (ograniczenia granic ekranu)."""
-        # Ograniczenia poziome (gracz może być tylko na lewej połowie ekranu)
-        if self.rect.left < SCREEN_WIDTH // 20:
-            self.rect.left = SCREEN_WIDTH // 20
+        # Ograniczenia poziome
+        if self.rect.left < 0:
+            self.rect.left = 0
             self.velocity_x = 0
-        elif self.rect.right > SCREEN_WIDTH // 2:
-            self.rect.right = SCREEN_WIDTH // 2
+        elif self.rect.right > SCREEN_WIDTH:
+            self.rect.right = SCREEN_WIDTH
             self.velocity_x = 0
 
         # Ograniczenia pionowe
@@ -131,6 +136,13 @@ class Player(Entity):
         self.physics()
         self.move(dt)
         self.update_weapon(dt)
+
+        # Aktualizuj timer nietykalności
+        if self.is_invincible:
+            self.invincibility_timer -= dt
+            if self.invincibility_timer <= 0:
+                self.is_invincible = False
+                self.invincibility_timer = 0.0
 
         # Regeneracja zdrowia
         if self.health_regen > 0:
@@ -302,14 +314,34 @@ class Player(Entity):
 
     def take_damage(self, damage):
         """
-        Gracz otrzymuje obrażenia z uwzględnieniem pancerza.
+        Gracz otrzymuje obrażenia z uwzględnieniem pancerza i nietykalności.
 
         Args:
             damage: Ilość obrażeń
+
+        Returns:
+            True jeśli gracz umarł, False w przeciwnym razie
         """
+        # Jeśli gracz jest nietykalny, nie otrzymuje obrażeń
+        if self.is_invincible:
+            return False
+
         actual_damage = int(damage * self.armor_multiplier)
         self.health -= actual_damage
+
+        # Aktywuj nietykalność po otrzymaniu obrażeń
+        self.activate_invincibility()
+
         return self.health <= 0  # Zwróć True jeśli gracz umarł
+
+    def activate_invincibility(self):
+        """Aktywuje timer nietykalności gracza."""
+        self.is_invincible = True
+        self.invincibility_timer = self.invincibility_duration
+
+    def is_invincible_now(self):
+        """Zwraca True jeśli gracz jest aktualnie nietykalny."""
+        return self.is_invincible
 
     def is_alive(self):
         """Sprawdza, czy gracz żyje."""

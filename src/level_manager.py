@@ -9,13 +9,32 @@ class LevelManager:
         Inicjalizuje LevelManager.
 
         Args:
-            xp_per_level: Ilość XP potrzebna do awansu na następny poziom
+            xp_per_level: Ilość XP potrzebna do awansu na poziom 2 (bazowa wartość)
         """
         self.level = 1
         self.current_xp = 0
-        self.xp_per_level = xp_per_level
+        self.base_xp_per_level = xp_per_level  # Bazowa wartość XP dla poziomu 2
         self.total_xp = 0  # Całkowite XP zebrane w grze
         self.level_up_callbacks = []  # Lista funkcji do wywołania przy awansie
+
+    def _get_xp_for_level(self, level):
+        """
+        Oblicza ilość XP potrzebną do awansu na dany poziom.
+        Każdy kolejny poziom wymaga więcej XP (wzór: base_xp * level^1.1).
+
+        Args:
+            level: Numer poziomu, do którego chcemy awansować (2, 3, 4, ...)
+
+        Returns:
+            Ilość XP potrzebna do awansu na dany poziom
+        """
+        if level <= 1:
+            return 0
+        # Wzór: każdy poziom wymaga więcej XP
+        # Poziom 2: base_xp * 2^1.1 ≈ base_xp * 2.14
+        # Poziom 3: base_xp * 3^1.1 ≈ base_xp * 3.45
+        # Poziom 4: base_xp * 4^1.1 ≈ base_xp * 4.97
+        return int(self.base_xp_per_level * (level ** 1.1))
 
     def add_xp(self, xp_amount):
         """
@@ -32,11 +51,15 @@ class LevelManager:
         level_ups = 0
 
         # Sprawdzaj, czy gracz powinien awansować
-        while self.current_xp >= self.xp_per_level:
-            self.current_xp -= self.xp_per_level
-            self.level += 1
-            level_ups += 1
-            self._trigger_level_up()
+        while True:
+            xp_needed_for_next_level = self._get_xp_for_level(self.level + 1)
+            if self.current_xp >= xp_needed_for_next_level:
+                self.current_xp -= xp_needed_for_next_level
+                self.level += 1
+                level_ups += 1
+                self._trigger_level_up()
+            else:
+                break
 
         return level_ups
 
@@ -64,7 +87,8 @@ class LevelManager:
 
     def get_xp_to_next_level(self):
         """Zwraca ilość XP potrzebną do następnego poziomu."""
-        return self.xp_per_level - self.current_xp
+        xp_needed = self._get_xp_for_level(self.level + 1)
+        return xp_needed - self.current_xp
 
     def get_xp_progress(self):
         """
@@ -73,7 +97,10 @@ class LevelManager:
         Returns:
             Postęp jako liczba zmiennoprzecinkowa od 0.0 do 1.0
         """
-        return self.current_xp / self.xp_per_level
+        xp_needed = self._get_xp_for_level(self.level + 1)
+        if xp_needed == 0:
+            return 0.0
+        return self.current_xp / xp_needed
 
     def get_total_xp(self):
         """Zwraca całkowite XP zebrane w grze."""

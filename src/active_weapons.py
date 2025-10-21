@@ -32,7 +32,8 @@ class LaserProjectile(Projectile):
             direction_x=direction_x,
             direction_y=direction_y,
             weapon_source=weapon_source,
-            piercing=2  # Lasery przebijają 2 wrogów
+            piercing=2,  # Lasery przebijają 2 wrogów
+            color=(0, 255, 100)  # Zielony kolor dla laserów
         )
 
 
@@ -67,7 +68,8 @@ class ShieldProjectile(Projectile):
             direction_x=0,
             direction_y=0,
             weapon_source=weapon_source,
-            piercing=True  # Pociski tarczy przechodzą przez wrogów
+            piercing=True,  # Pociski tarczy przechodzą przez wrogów
+            color=(100, 150, 255)  # Niebieski kolor dla pocisków tarczy
         )
         self.player_x = player_x
         self.player_y = player_y

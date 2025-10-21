@@ -84,11 +84,12 @@ class PlayerHUD:
     def _draw_xp(self, screen, player, x, y):
         """Rysuje pasek XP."""
         current_xp = player.level_manager.current_xp
-        xp_per_level = player.level_manager.xp_per_level
+        # Oblicz XP potrzebny do następnego poziomu
+        xp_needed_for_next = player.level_manager._get_xp_for_level(player.level_manager.level + 1)
 
         # Tekst
         xp_text = self.font_medium.render(
-            f"XP: {int(current_xp)}/{int(xp_per_level)}",
+            f"XP: {int(current_xp)}/{int(xp_needed_for_next)}",
             True,
             self.color_text
         )
@@ -101,7 +102,7 @@ class PlayerHUD:
             x,
             bar_y,
             current_xp,
-            xp_per_level,
+            xp_needed_for_next,
             self.color_xp_bar,
             self.color_xp_bg
         )

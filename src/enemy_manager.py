@@ -10,22 +10,23 @@ class EnemyManager:
     Implementuje system fal wrogów, które rosną w trudności wraz z czasem.
     """
 
-    def __init__(self, spawn_distance=100, max_enemies=50):
+    def __init__(self, spawn_distance=100, max_enemies=30):
         """
         Inicjalizuje EnemyManager.
 
         Args:
             spawn_distance: Dystans od gracza, w którym spawniają się wrogowie (poza ekranem)
-            max_enemies: Maksymalna liczba wrogów na ekranie (domyślnie 50)
+            max_enemies: Początkowa maksymalna liczba wrogów na ekranie (domyślnie 30)
         """
         self.enemies = []
         self.spawn_distance = spawn_distance
-        self.max_enemies = max_enemies
+        self.base_max_enemies = max_enemies  # Bazowa liczba wrogów
+        self.max_enemies = max_enemies  # Dynamicznie skalowana maksymalna liczba wrogów
         self.wave = 0
         self.time_elapsed = 0.0
         self.spawn_timer = 0.0
-        self.spawn_interval = 1.5  # Początkowy interwał spawnu (sekundy) - zwiększono dla mniejszej liczby wrogów
-        self.enemies_per_wave = 2  # Liczba wrogów na falę - zmniejszono z 3 na 2
+        self.spawn_interval = 1.5  # Początkowy interwał spawnu (sekundy)
+        self.enemies_per_wave = 2  # Liczba wrogów na falę
         self.enemies_spawned = 0
 
     def update(self, dt, player):
@@ -48,6 +49,10 @@ class EnemyManager:
             self.spawn_interval = max(0.3, 1.0 - math.log(self.wave + 1) * 0.15)
             # Logarytmiczna krzywa dla liczby wrogów (rośnie wolniej)
             self.enemies_per_wave = 3 + int(math.log(self.wave + 1) * 2)
+            # Dynamicznie skaluj maksymalną liczbę wrogów wraz z postępem fali
+            # Wzór: base_max_enemies + wave * 5 (np. 30 + 0*5 = 30, 30 + 1*5 = 35, itd.)
+            # Logarytmiczne skalowanie zapobiega zbyt szybkiemu wzrostowi
+            self.max_enemies = self.base_max_enemies + int(math.log(self.wave + 1) * 8)
 
         # Spawnuj nowych wrogów (jeśli nie osiągnęliśmy limitu)
         if self.spawn_timer >= self.spawn_interval and len(self.enemies) < self.max_enemies:
@@ -112,4 +117,8 @@ class EnemyManager:
     def get_spawn_interval(self):
         """Zwraca aktualny interwał spawnu."""
         return self.spawn_interval
+
+    def get_max_enemies(self):
+        """Zwraca aktualny maksymalny limit wrogów."""
+        return self.max_enemies
 

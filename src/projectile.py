@@ -9,7 +9,7 @@ class Projectile(ABC):
     Zawiera wspólne właściwości i metody dla zarządzania pociskami.
     """
 
-    def __init__(self, x, y, image_path, speed=350, damage=10, lifetime=None, direction_x=1, direction_y=0, weapon_source=None, piercing=False):
+    def __init__(self, x, y, image_path, speed=350, damage=10, lifetime=None, direction_x=1, direction_y=0, weapon_source=None, piercing=False, color=None):
         """
         Inicjalizuje Projectile.
 
@@ -24,8 +24,14 @@ class Projectile(ABC):
             direction_y: Kierunek na osi Y (-1, 0, 1)
             weapon_source: Referencja do broni, która wystrzelił ten pocisk
             piercing: Czy pocisk przechodzi przez wrogów (True/False lub liczba przebić)
+            color: Kolor do pokolorowania pocisku (RGB tuple, np. (255, 0, 0) dla czerwonego)
         """
         self.image = pygame.image.load(image_path)
+
+        # Zastosuj kolorowanie jeśli podano kolor
+        if color is not None:
+            self.image = self._colorize_image(self.image, color)
+
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
@@ -48,6 +54,30 @@ class Projectile(ABC):
         # liczba > 0 = liczba przebić zanim pocisk zostanie usunięty
         self.piercing = piercing
         self.piercing_count = 0  # Licznik przebić (dla liczb > 0)
+
+    def _colorize_image(self, image, color):
+        """
+        Pokoloruje obraz na podstawie podanego koloru.
+        Białe piksele będą pokolorowane na podany kolor.
+
+        Args:
+            image: Obraz pygame
+            color: Kolor RGB (tuple)
+
+        Returns:
+            Pokolorowany obraz
+        """
+        # Utwórz kopię obrazu
+        colorized = image.copy()
+
+        # Utwórz powierzchnię z kolorem
+        color_surface = pygame.Surface(colorized.get_size())
+        color_surface.fill(color)
+
+        # Nałóż kolor na obraz (używając alpha channel)
+        colorized.blit(color_surface, (0, 0), special_flags=pygame.BLEND_MULT)
+
+        return colorized
 
     def move(self, dt):
         """
@@ -136,6 +166,7 @@ class Bullet(Projectile):
             direction_x=1,  # Porusza się w prawo
             direction_y=0,
             weapon_source=weapon_source,
-            piercing=False  # Zwykłe kule są usuwane po trafieniu
+            piercing=False,  # Zwykłe kule są usuwane po trafieniu
+            color=(255, 200, 0)  # Żółty kolor dla zwykłych kul
         )
 

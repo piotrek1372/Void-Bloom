@@ -1,5 +1,4 @@
 import pygame
-import math
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
@@ -17,18 +16,33 @@ class ParallaxManager:
         Args:
             background_image_path: Ścieżka do obrazu tła
         """
-        self.background_image = pygame.image.load(background_image_path).convert()
+        # Załaduj oryginalny obraz
+        original_image = pygame.image.load(background_image_path).convert()
+        original_width = original_image.get_width()
+        original_height = original_image.get_height()
+
+        # Zeskaluj tło, aby pokryć cały ekran
+        # Zachowaj proporcje i upewnij się, że pokrywa cały ekran
+        scale_x = SCREEN_WIDTH / original_width
+        scale_y = SCREEN_HEIGHT / original_height
+        # Użyj większego współczynnika skalowania, aby upewnić się, że pokrywa cały ekran
+        scale = max(scale_x, scale_y)
+
+        new_width = int(original_width * scale)
+        new_height = int(original_height * scale)
+
+        self.background_image = pygame.transform.scale(original_image, (new_width, new_height))
         self.background_width = self.background_image.get_width()
         self.background_height = self.background_image.get_height()
-        
+
         # Pozycja przesunięcia tła (dla efektu parallax)
         self.offset_x = 0
         self.offset_y = 0
-        
+
         # Prędkość przesunięcia gracza (do obliczania parallax)
         self.player_velocity_x = 0
         self.player_velocity_y = 0
-        
+
         # Współczynnik parallax dla różnych warstw
         # 0.0 = statyczne, 1.0 = pełna prędkość gracza
         self.parallax_depth = 0.3  # Tło porusza się wolniej niż gracz
