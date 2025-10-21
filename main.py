@@ -15,6 +15,7 @@ from src.player_hud import PlayerHUD
 from src.enemy_health_bar import EnemyHealthBarManager
 from src.spatial_grid import SpatialGrid
 from src.performance_monitor import PerformanceMonitor
+from src.parallax_manager import ParallaxManager
 
 pygame.init()
 SCREEN
@@ -42,10 +43,13 @@ def main():
     clock = pygame.time.Clock()
     run = True
     player = Player()
-    enemy_manager = EnemyManager(spawn_distance=150)
+    enemy_manager = EnemyManager(spawn_distance=150, max_enemies=30)  # Zmniejszono z 50 na 30
     xp_manager = XPManager()
     upgrade_pool = UpgradePool()
-    scaled_background = scale_background()
+
+    # Inicjalizuj parallax manager zamiast scaled_background
+    background_path = os.path.join('assets', 'gfx', 'parallax-space-background.png')
+    parallax_manager = ParallaxManager(background_path)
 
     # Inicjalizuj systemy gry
     sound_manager = SoundManager()
@@ -54,7 +58,7 @@ def main():
     player_hud = PlayerHUD()
     enemy_health_bar_manager = EnemyHealthBarManager()
     spatial_grid = SpatialGrid(SCREEN_WIDTH, SCREEN_HEIGHT, cell_size=100)
-    performance_monitor = PerformanceMonitor(show_debug=False)  # Ustaw True aby zobaczyć debug info
+    performance_monitor = PerformanceMonitor(show_debug=True)  # Wyświetlaj FPS i debug info
 
     # Przekaż sound_manager do gracza
     player.set_sound_manager(sound_manager)
@@ -65,9 +69,6 @@ def main():
     game_over_screen = None
     demo_ended = False
     enemies_killed = 0
-
-    # Śledzenie wrogów w spatial grid (dla optymalizacji)
-    tracked_enemies = set()  # Zbiór id(enemy) już dodanych do spatial grid
 
     while run:
         dt = clock.tick(FPS) / 1000
@@ -91,7 +92,8 @@ def main():
             if event.type == pygame.MOUSEMOTION and level_up_screen is not None:
                 level_up_screen.handle_mouse_motion(event.pos)
 
-        SCREEN.blit(scaled_background, (0, 0))
+        # Rysuj tło z efektem parallax
+        parallax_manager.draw_background(SCREEN)
 
         # Aktualizuj efekty wizualne
         effect_manager.update(dt)
@@ -116,10 +118,29 @@ def main():
             # Aktualizuj gracza
             player.input(keys, dt)
             player.update(dt)
+
+            # Aktualizuj parallax na podstawie ruchu gracza
+            parallax_manager.update(player.velocity_x, player.velocity_y, dt)
+
             player.draw(SCREEN)
 
             # Aktualizuj wrogów
             enemy_manager.update(dt, player)
+
+            # Sprawdzaj kolizje gracza z wrogami
+            for enemy in enemy_manager.get_enemies():
+                if player.rect.colliderect(enemy.rect):
+                    # Gracz otrzymuje obrażenia od wroga
+                    if player.take_damage(1):  # 1 obrażenie na klatkę
+                        # Gracz umarł
+                        sound_manager.play_enemy_death_sound()
+                        game_over_screen = GameOverScreen(
+                            player_level=player.get_level(),
+                            total_xp=player.level_manager.total_xp,
+                            enemies_killed=enemies_killed,
+                            time_survived=demo_timer.total_duration
+                        )
+                        game_paused = True
 
             # Rysuj wrogów
             for enemy in enemy_manager.get_enemies():
@@ -131,23 +152,11 @@ def main():
             # Rysuj paski zdrowia wrogów
             enemy_health_bar_manager.draw_all(SCREEN, enemy_manager.get_enemies())
 
-            # Optymalizacja: Zarządzaj wrogami w spatial grid
-            # Dodaj nowych wrogów do spatial grid
+            # Optymalizacja: Przebuduj spatial grid z aktualną listą wrogów
+            # Czyść siatkę i dodaj wszystkich żywych wrogów
+            spatial_grid.clear()
             for enemy in enemy_manager.get_enemies():
-                enemy_id = id(enemy)
-                if enemy_id not in tracked_enemies:
-                    spatial_grid.add_object(enemy)
-                    tracked_enemies.add(enemy_id)
-                else:
-                    # Aktualizuj pozycję wroga w spatial grid
-                    # Zamiast przebudowywać całą siatkę, aktualizujemy tylko pozycje
-                    # które się zmieniły (wróg przesunął się do innej komórki)
-                    spatial_grid.update_object(enemy)
-
-            # Usuń martwych wrogów z śledzenia
-            dead_enemies = [eid for eid in tracked_enemies if eid not in [id(e) for e in enemy_manager.get_enemies()]]
-            for enemy_id in dead_enemies:
-                tracked_enemies.discard(enemy_id)
+                spatial_grid.add_object(enemy)
 
             # Rysuj pociski z broni gracza i sprawdzaj kolizje z wrogami
             for projectile in player.get_bullets().copy():
@@ -175,8 +184,23 @@ def main():
                             )
                             enemy_manager.remove_enemy(enemy)
                             enemies_killed += 1
-                        # Usuń pocisk po trafieniu - używaj weapon_source
-                        if projectile.weapon_source is not None:
+
+                        # Obsługuj piercing - licznik przebić
+                        # piercing=True: nieskończone przebicia (np. tarcza)
+                        # piercing=False: brak przebić (zwykłe kule)
+                        # piercing=liczba: liczba przebić (np. laser z piercing=2)
+                        should_remove = False
+                        if isinstance(projectile.piercing, bool):
+                            # Jeśli piercing to boolean
+                            if not projectile.piercing:
+                                should_remove = True
+                        else:
+                            # Jeśli piercing to liczba
+                            projectile.piercing_count += 1
+                            if projectile.piercing_count >= projectile.piercing:
+                                should_remove = True
+
+                        if should_remove and projectile.weapon_source is not None:
                             projectile.weapon_source.remove_projectile(projectile)
                         break
 
@@ -191,7 +215,7 @@ def main():
                 sound_manager.play_xp_pickup_sound()
                 # Dodaj efekty wizualne dla zebranych klejnotów
                 for gem in collected_gems:
-                    effect_manager.add_xp_absorption(gem.rect.centerx, gem.rect.centery, duration=0.3)
+                    effect_manager.add_xp_absorption(gem.rect.centerx, gem.rect.centery, player.rect.centerx, player.rect.centery, duration=0.3)
                 level_ups = player.add_xp(collected_xp)
                 # Jeśli gracz awansował, pokaż ekran awansu
                 if level_ups > 0:

@@ -151,28 +151,47 @@ class ScreenShakeEffect(VisualEffect):
 class XPAbsorptionEffect(VisualEffect):
     """
     Efekt wizualny wchłonięcia klejnotu XP.
-    Pokazuje błysk i animację wchłonięcia w miejscu klejnotu.
+    Pokazuje cząsteczki lecące w kierunku gracza z efektem zanikania.
     """
 
-    def __init__(self, x, y, duration=0.3):
+    def __init__(self, x, y, player_x, player_y, duration=0.3):
         """
         Inicjalizuje efekt wchłonięcia XP.
 
         Args:
             x: Pozycja X klejnotu
             y: Pozycja Y klejnotu
+            player_x: Pozycja X gracza (cel)
+            player_y: Pozycja Y gracza (cel)
             duration: Czas trwania efektu (domyślnie 0.3 sekundy)
         """
         super().__init__(duration)
-        self.x = x
-        self.y = y
         self.start_x = x
         self.start_y = y
+        self.player_x = player_x
+        self.player_y = player_y
+        self.x = x
+        self.y = y
         self.radius = 5
+
+        # Oblicz kierunek do gracza
+        import math
+        dx = player_x - x
+        dy = player_y - y
+        distance = math.sqrt(dx**2 + dy**2)
+        if distance > 0:
+            self.direction_x = dx / distance
+            self.direction_y = dy / distance
+        else:
+            self.direction_x = 0
+            self.direction_y = 0
+
+        # Prędkość cząsteczek
+        self.speed = 300  # piksele na sekundę
 
     def draw(self, screen):
         """
-        Rysuje efekt wchłonięcia.
+        Rysuje efekt wchłonięcia z cząsteczkami lecącymi do gracza.
 
         Args:
             screen: Powierzchnia pygame do rysowania
@@ -183,8 +202,12 @@ class XPAbsorptionEffect(VisualEffect):
         # Oblicz postęp animacji (0.0 do 1.0)
         progress = self.elapsed_time / self.duration
 
-        # Rosnący promień błysku
-        current_radius = int(self.radius + progress * 20)
+        # Cząsteczki lecą w kierunku gracza
+        current_x = self.x
+        current_y = self.y
+
+        # Malejący promień (cząsteczka się zmniejsza)
+        current_radius = max(2, int(self.radius * (1.0 - progress)))
 
         # Malejąca przezroczystość
         alpha = int(255 * (1.0 - progress))
@@ -202,7 +225,24 @@ class XPAbsorptionEffect(VisualEffect):
         effect_surface.set_alpha(alpha)
 
         # Rysuj na ekranie
-        screen.blit(effect_surface, (int(self.x - current_radius), int(self.y - current_radius)))
+        screen.blit(effect_surface, (int(current_x - current_radius), int(current_y - current_radius)))
+
+    def update(self, dt):
+        """
+        Aktualizuje pozycję cząsteczki lecącej do gracza.
+
+        Args:
+            dt: Delta czasu od ostatniej klatki
+
+        Returns:
+            True jeśli efekt powinien być usunięty, False w przeciwnym razie
+        """
+        # Przesuń cząsteczkę w kierunku gracza
+        self.x += self.direction_x * self.speed * dt
+        self.y += self.direction_y * self.speed * dt
+
+        # Wywołaj update z klasy bazowej
+        return super().update(dt)
 
 
 class EffectManager:
@@ -229,16 +269,18 @@ class EffectManager:
         self.hit_flashes[obj_id] = effect
         self.effects.append(effect)
 
-    def add_xp_absorption(self, x, y, duration=0.3):
+    def add_xp_absorption(self, x, y, player_x, player_y, duration=0.3):
         """
         Dodaje efekt wchłonięcia XP.
 
         Args:
             x: Pozycja X klejnotu
             y: Pozycja Y klejnotu
+            player_x: Pozycja X gracza (cel)
+            player_y: Pozycja Y gracza (cel)
             duration: Czas trwania efektu
         """
-        effect = XPAbsorptionEffect(x, y, duration)
+        effect = XPAbsorptionEffect(x, y, player_x, player_y, duration)
         self.effects.append(effect)
 
     def add_screen_shake(self, duration=0.2, intensity=5):

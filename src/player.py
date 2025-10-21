@@ -189,16 +189,25 @@ class Player(Entity):
         """
         if upgrade.upgrade_type == UpgradeType.DAMAGE:
             self.damage_multiplier *= upgrade.value
-            # Aktualizuj obrażenia wszystkich broni
+            # Aktualizuj obrażenia wszystkich broni (aktywnych i dostępnych)
             new_damage = self.get_damage()
             for weapon in self.active_weapons:
                 weapon.set_damage(new_damage)
+            # Aktualizuj obrażenia broni dostępnych, ale nieaktywnych
+            for _, weapon in self.available_weapons.items():
+                if weapon is not None and weapon not in self.active_weapons:
+                    weapon.set_damage(new_damage)
         elif upgrade.upgrade_type == UpgradeType.FIRE_RATE:
             self.fire_rate_multiplier *= upgrade.value
-            # Aktualizuj fire_rate wszystkich broni
+            # Aktualizuj fire_rate wszystkich broni (aktywnych i dostępnych)
             for weapon in self.active_weapons:
                 weapon.fire_rate *= upgrade.value
                 weapon.cooldown_duration = 1.0 / weapon.fire_rate
+            # Aktualizuj fire_rate broni dostępnych, ale nieaktywnych
+            for _, weapon in self.available_weapons.items():
+                if weapon is not None and weapon not in self.active_weapons:
+                    weapon.fire_rate *= upgrade.value
+                    weapon.cooldown_duration = 1.0 / weapon.fire_rate
         elif upgrade.upgrade_type == UpgradeType.HEALTH:
             self.max_health += upgrade.value
             self.health = self.max_health  # Pełne leczenie przy awansie
@@ -275,10 +284,15 @@ class Player(Entity):
             self.max_velocity_y *= passive_upgrade.value
         elif passive_upgrade.upgrade_type == PassiveUpgradeType.FIRE_RATE_BOOST:
             self.fire_rate_multiplier *= passive_upgrade.value
-            # Aktualizuj fire_rate wszystkich broni
+            # Aktualizuj fire_rate wszystkich broni (aktywnych i dostępnych)
             for weapon in self.active_weapons:
                 weapon.fire_rate *= passive_upgrade.value
                 weapon.cooldown_duration = 1.0 / weapon.fire_rate
+            # Aktualizuj fire_rate broni dostępnych, ale nieaktywnych
+            for _, weapon in self.available_weapons.items():
+                if weapon is not None and weapon not in self.active_weapons:
+                    weapon.fire_rate *= passive_upgrade.value
+                    weapon.cooldown_duration = 1.0 / weapon.fire_rate
         elif passive_upgrade.upgrade_type == PassiveUpgradeType.HEALTH_REGEN:
             self.health_regen += passive_upgrade.value
         elif passive_upgrade.upgrade_type == PassiveUpgradeType.XP_MULTIPLIER:

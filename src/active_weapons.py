@@ -31,7 +31,8 @@ class LaserProjectile(Projectile):
             lifetime=None,
             direction_x=direction_x,
             direction_y=direction_y,
-            weapon_source=weapon_source
+            weapon_source=weapon_source,
+            piercing=2  # Lasery przebijają 2 wrogów
         )
 
 
@@ -65,7 +66,8 @@ class ShieldProjectile(Projectile):
             lifetime=None,
             direction_x=0,
             direction_y=0,
-            weapon_source=weapon_source
+            weapon_source=weapon_source,
+            piercing=True  # Pociski tarczy przechodzą przez wrogów
         )
         self.player_x = player_x
         self.player_y = player_y

@@ -24,8 +24,8 @@ class EnemyManager:
         self.wave = 0
         self.time_elapsed = 0.0
         self.spawn_timer = 0.0
-        self.spawn_interval = 1.0  # Początkowy interwał spawnu (sekundy)
-        self.enemies_per_wave = 3  # Liczba wrogów na falę
+        self.spawn_interval = 1.5  # Początkowy interwał spawnu (sekundy) - zwiększono dla mniejszej liczby wrogów
+        self.enemies_per_wave = 2  # Liczba wrogów na falę - zmniejszono z 3 na 2
         self.enemies_spawned = 0
 
     def update(self, dt, player):
@@ -39,11 +39,15 @@ class EnemyManager:
         self.time_elapsed += dt
         self.spawn_timer += dt
 
-        # Zwiększaj trudność co 30 sekund
+        # Zwiększaj trudność co 30 sekund, ale z bardziej płynną krzywą
+        # Używamy logarytmicznej funkcji zamiast liniowej, aby uniknąć gwałtownych skoków
         if self.time_elapsed > 30 * (self.wave + 1):
             self.wave += 1
-            self.spawn_interval = max(0.3, 1.0 - self.wave * 0.1)  # Zmniejszaj interwał
-            self.enemies_per_wave = 3 + self.wave  # Zwiększaj liczbę wrogów
+            # Logarytmiczna krzywa dla interwału spawnu (zmniejsza się wolniej)
+            # log(wave + 1) zapobiega zbyt szybkiemu zmniejszaniu się interwału
+            self.spawn_interval = max(0.3, 1.0 - math.log(self.wave + 1) * 0.15)
+            # Logarytmiczna krzywa dla liczby wrogów (rośnie wolniej)
+            self.enemies_per_wave = 3 + int(math.log(self.wave + 1) * 2)
 
         # Spawnuj nowych wrogów (jeśli nie osiągnęliśmy limitu)
         if self.spawn_timer >= self.spawn_interval and len(self.enemies) < self.max_enemies:

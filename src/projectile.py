@@ -9,7 +9,7 @@ class Projectile(ABC):
     Zawiera wspólne właściwości i metody dla zarządzania pociskami.
     """
 
-    def __init__(self, x, y, image_path, speed=350, damage=10, lifetime=None, direction_x=1, direction_y=0, weapon_source=None):
+    def __init__(self, x, y, image_path, speed=350, damage=10, lifetime=None, direction_x=1, direction_y=0, weapon_source=None, piercing=False):
         """
         Inicjalizuje Projectile.
 
@@ -23,6 +23,7 @@ class Projectile(ABC):
             direction_x: Kierunek na osi X (-1, 0, 1)
             direction_y: Kierunek na osi Y (-1, 0, 1)
             weapon_source: Referencja do broni, która wystrzelił ten pocisk
+            piercing: Czy pocisk przechodzi przez wrogów (True/False lub liczba przebić)
         """
         self.image = pygame.image.load(image_path)
         self.rect = self.image.get_rect()
@@ -40,6 +41,13 @@ class Projectile(ABC):
 
         # Referencja do broni, która wystrzelił ten pocisk
         self.weapon_source = weapon_source
+
+        # Atrybut piercing - określa czy pocisk przechodzi przez wrogów
+        # True = przechodzi przez wszystkich wrogów (nieskończone przebicia)
+        # False = usuwany po trafieniu (0 przebić)
+        # liczba > 0 = liczba przebić zanim pocisk zostanie usunięty
+        self.piercing = piercing
+        self.piercing_count = 0  # Licznik przebić (dla liczb > 0)
 
     def move(self, dt):
         """
@@ -127,6 +135,7 @@ class Bullet(Projectile):
             lifetime=None,  # Kula żyje nieskończenie długo
             direction_x=1,  # Porusza się w prawo
             direction_y=0,
-            weapon_source=weapon_source
+            weapon_source=weapon_source,
+            piercing=False  # Zwykłe kule są usuwane po trafieniu
         )
 
